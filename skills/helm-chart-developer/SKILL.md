@@ -13,6 +13,16 @@ allowed-tools: Bash(helm lint *) Bash(helm template *) Bash(helm show *) Bash(he
 
 **NEVER skip local testing after making changes.** Always run lint + template render before considering the work done.
 
+## .helmignore
+
+Ensure `.helmignore` file excludes the `tests/` directory so that unit tests are not included when the chart is packaged or deployed:
+
+```
+tests/
+```
+
+This prevents test files from being included in the released chart package.
+
 ## Resolving value files for testing
 
 When the chart is deployed via ArgoCD, read the ArgoCD Application or `argocd-app.yaml` generator
@@ -89,6 +99,8 @@ When you set values in asserts, don't use dot-notation keys but use nested YAML 
 Ask what should be tested and what type is preferred:
 - type: snapshots | explicit inline assertions
 - what to test: what exactly to test
+
+When creating unit test value files, store them in the `tests/values` folder.
 
 # Documentation
 

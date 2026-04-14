@@ -29,6 +29,32 @@ before User confirms testing of current is done:
 Use kubectl command to apply argocd manifests.
 ALWAYS give User clear indication what namespace and resource name is going to be applied.
 
+After the app has been applied, if argocd CLI is available, follow this sequence:
+
+1. **Refresh** — pull the latest state from the source repo:
+   ```shell
+   argocd app get <app-name> --refresh
+   ```
+
+2. **Diff** — show what would change and explain it to the user clearly:
+   ```shell
+   argocd app diff <app-name>
+   ```
+   Summarise the diff for the user (resources added/changed/removed, any notable impact).
+
+3. **Confirm before sync** — ALWAYS ask the user to confirm before proceeding. Do NOT sync automatically.
+
+4. **Sync** — only after explicit user confirmation:
+   ```shell
+   argocd app sync <app-name>
+   ```
+
+5. **Verify** — check final status and logs after sync:
+   ```shell
+   argocd app get <app-name>
+   argocd app logs <app-name>
+   ```
+
 # Commands
 
 ## kubectl
