@@ -13,6 +13,16 @@ allowed-tools: Bash(helm lint *) Bash(helm template *) Bash(helm show *) Bash(he
 
 **NEVER skip local testing after making changes.** Always run lint + template render before considering the work done.
 
+## .helmignore
+
+Ensure `.helmignore` file excludes the `tests/` directory so that unit tests are not included when the chart is packaged or deployed:
+
+```
+tests/
+```
+
+This prevents test files from being included in the released chart package.
+
 ## Resolving value files for testing
 
 When the chart is deployed via ArgoCD, read the ArgoCD Application or `argocd-app.yaml` generator
@@ -84,11 +94,21 @@ helm unittest . -u
 
 When you set values in asserts, don't use dot-notation keys but use nested YAML structures.
 
+**IMPORTANT: Always validate unittest tests after making changes.** When you modify any helm chart files (templates, values, Chart.yaml, etc.) and unittest tests exist:
+1. Run `helm unittest .` to verify all tests pass
+2. If tests fail, investigate and fix the root cause before considering the work done
+3. Only update snapshots (`helm unittest . -u`) if the changes were intentional and correct
+4. Do not proceed with other work until all tests pass
+
 ### Adding new tests
 
-Ask what should be tested and what type is preferred:
+**ALWAYS ask the user before creating any test.** Never assume or default to a test type. Ask:
 - type: snapshots | explicit inline assertions
 - what to test: what exactly to test
+
+When creating unit test value files, store them in the `tests/values` folder.
+
+When creating snapshot tests, do **not** specify `templates:` in the test suite — let helm-unittest render all templates.
 
 # Documentation
 
@@ -99,10 +119,11 @@ Always keep relevant documentation in sync with all changes.
 Must always be in sync with templates implementation.
 Add or update the corresponding section in `values.yaml` with commented examples showing all valid options and their effect.
 Uncomment new fields as defaults where appropriate; leave optional/advanced fields commented out.
+Always mark required fields explicitly with a `# required` comment.
 
 ## README.md
 
-Explains key features of helm chart with very brief example for end-user.
+Explains key features of helm chart with very brief example for end-user. Do **not** list chart dependencies or their versions. Basic config examples must include only required fields.
 
 Ask if particular feature should be also described in README.md.
 
@@ -174,14 +195,15 @@ umbrella template).
 
 **NEVER run `helm repo add` or `helm repo update`** — do not add or update repos locally.
 
-Use the full repo URL directly in all helm commands:
+Use the full repo URL directly in helm commands. Note: `helm search repo` requires a registered repo and does NOT work with raw URLs — use `helm show chart` to discover available versions instead:
 
 ```shell
-# get values.yaml
-helm show values <REPO-URL>/<CHART> --version <VERSION>
+# list available versions and their download URLs — fetch index and parse it
+curl -s <REPO-URL>/index.yaml | grep -B1 -A5 "name: <CHART>" | grep -E "version:|urls:|\.tgz"
 
-# search for versions
-helm search repo <REPO-URL>/<CHART> --versions
+# get the .tgz URL from the index output above, then use it directly:
+helm show values <TGZ-URL>
+helm show chart <TGZ-URL>
 ```
 
 When dependency repo is local reference `file://local-path`, use `/local-path` only instead in commands above.
@@ -210,9 +232,10 @@ If a dependency chart is already downloaded as a `.tgz` in the `charts/` folder,
 helm show values ./charts/<CHART>-<VERSION>.tgz
 helm show readme ./charts/<CHART>-<VERSION>.tgz
 
-# fallback: use full repo URL when no local .tgz exists
-helm show values <REPO-URL>/<CHART> --version <VERSION>
-helm show readme <REPO-URL>/<CHART> --version <VERSION>
+# fallback: look up the .tgz URL from the repo index, then use it directly
+# curl -s <REPO-URL>/index.yaml | grep -B1 -A5 "name: <CHART>" | grep -E "version:|urls:|\.tgz"
+helm show values <TGZ-URL>
+helm show readme <TGZ-URL>
 ```
 
 **Prefer values and README documentation only.** Rely on `helm show values` and `helm show readme` as the primary source of truth for understanding a dependency chart's configuration.
@@ -226,7 +249,3 @@ If values/README are insufficient to figure out the task (e.g. undocumented beha
 ## helm unittest
 
 https://github.com/helm-unittest/helm-unittest
-
-```
-helm plugin install https://github.com/helm-unittest/helm-unittest.git --version VERSION
-```
